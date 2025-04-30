@@ -1,19 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
-project(feature_extraction)
-
+project("orb feature matching" LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_BUILD_TYPE Release)
 
-# Find required packages
 find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
+if (OpenCV_FOUND)
+    message(STATUS "Found OpenCV library: " ${OpenCV_INCLUDE_DIRS})
+    include_directories(${OpenCV_INCLUDE_DIRS})
+endif (OpenCV_FOUND)
 
-include_directories(
-    ${OpenCV_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
-)
-
-# Add executables
 add_executable(detect_feature examples/detect_feature.cpp)
 target_link_libraries(detect_feature ${OpenCV_LIBS})
