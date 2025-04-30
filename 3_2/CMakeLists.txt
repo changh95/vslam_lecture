@@ -14,5 +14,5 @@ include_directories(
 )
 
 # Add executables
-add_executable(detect_feature detect_feature.cpp)
+add_executable(detect_feature examples/detect_feature.cpp)
 target_link_libraries(detect_feature ${OpenCV_LIBS})
