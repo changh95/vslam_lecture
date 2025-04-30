@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:focal
+FROM ubuntu:focal
 
 MAINTAINER changh95
 ARG DEBIAN_FRONTEND=noninteractive
