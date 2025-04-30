@@ -15,4 +15,4 @@ include_directories(
 
 # Add executables
 add_executable(detect_feature detect_feature.cpp)
-target_link_libraries(feature_extraction ${OpenCV_LIBS})
+target_link_libraries(detect_feature ${OpenCV_LIBS})
