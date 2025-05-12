@@ -24,7 +24,3 @@
 [submodule "basalt_monado/thirdparty/magic_enum"]
 	path = basalt_monado/thirdparty/magic_enum
 	url = https://github.com/Neargye/magic_enum.git
-
-[submodule "basalt_monado/basalt_monado/thirdparty/magic_enum"]
-	path = basalt_monado/basalt_monado/thirdparty/magic_enum
-	url = https://github.com/Neargye/magic_enum.git
