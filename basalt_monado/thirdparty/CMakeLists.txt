@@ -26,17 +26,17 @@ file(GLOB ROSTIME_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/roscpp_core/rostime/src/*.cp
 file(GLOB ROSBAG_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/ros_comm/tools/rosbag_storage/src/*.cpp")
 file(GLOB ROSLZ4_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/ros_comm/utilities/roslz4/src/[a-z]*.c")
 
-#add_library(rosbag STATIC ${ROSBAG_SRCS} ${ROSTIME_SRCS} ${CPP_COMMON_SRCS} ${ROSCPP_SERIALIZATION_SRCS} ${ROSLZ4_SRCS} ${CONSOLE_BRIDGE_SRCS})
+add_library(rosbag STATIC ${ROSBAG_SRCS} ${ROSTIME_SRCS} ${CPP_COMMON_SRCS} ${ROSCPP_SERIALIZATION_SRCS} ${ROSLZ4_SRCS} ${CONSOLE_BRIDGE_SRCS})
 
-#target_include_directories(rosbag PUBLIC
-#    include
-#    console_bridge/include
-#    roscpp_core/cpp_common/include
-#    roscpp_core/rostime/include
-#    roscpp_core/roscpp_serialization/include
-#    roscpp_core/roscpp_traits/include
-#    ros_comm/utilities/roslz4/include
-#    ros_comm/tools/rosbag_storage/include)
+target_include_directories(rosbag PUBLIC
+    include
+    console_bridge/include
+    roscpp_core/cpp_common/include
+    roscpp_core/rostime/include
+    roscpp_core/roscpp_serialization/include
+    roscpp_core/roscpp_traits/include
+    ros_comm/utilities/roslz4/include
+    ros_comm/tools/rosbag_storage/include)
 
-#target_link_libraries(rosbag PUBLIC ${Boost_LIBRARIES} ${BZIP2_LIBRARIES} ${lz4_LIBRARIES})
+target_link_libraries(rosbag PUBLIC ${Boost_LIBRARIES} ${BZIP2_LIBRARIES} ${lz4_LIBRARIES})
 
