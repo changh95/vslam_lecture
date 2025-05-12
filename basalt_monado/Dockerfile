@@ -46,16 +46,6 @@ RUN apt update && \
     . /venv/bin/activate && \
     pip install clangd-tidy
 RUN apt-get install -y apt-transport-https ca-certificates gnupg
-#RUN apt-get install -y \
-#    libgl1 \
-#    libglx-mesa0 \
-#    libegl1 \
-#    libglx0 \
-#    libx11-xcb1 \
-#    libxcb1 \
-#    mesa-utils \
-#    libglu1-mesa
-
 
 # Download dataset
 RUN apt-get install -y wget
@@ -70,8 +60,8 @@ RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/
 RUN unzip MOO07_mapping_easy.zip
 
 # Install Basalt
-RUN git clone --recursive https://gitlab.freedesktop.org/mateosss/basalt.git
-WORKDIR basalt
+RUN git clone --recursive https://github.com/changh95/vslam_lecture.git
+WORKDIR vslam_lecture/basalt_monado
 RUN apt-get install -y sudo
 RUN ./scripts/install_deps.sh
 RUN cmake --preset development
@@ -82,7 +72,6 @@ RUN sudo cmake --build build --target install
 
 # Run Command:
 # docker run -it --privileged --net=host --ipc=host -e "DISPLAY=$DISPLAY" -e "QT_X11_NO_MITSHM=1" -v "/tmp/.X11-unix:/tmp/.X11-unix:rw" -e "XAUTHORITY=$XAUTH" --gpus all basalt
-
 
 #docker run -it --rm \
 #    --gpus all \
