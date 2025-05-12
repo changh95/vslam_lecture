@@ -51,15 +51,16 @@ RUN apt-get install -y apt-transport-https ca-certificates gnupg
 RUN apt-get install -y wget
 
 # Valve Index
-RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MI_valve_index/MIO_others/MIO05_inspect_easy.zip
-RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MI_valve_index/MIP_playing/MIPB_beat_saber/MIPB07_beatsaber_fitbeat_expertplus_2.zip
-RUN unzip MIPB07_beatsaber_fitbeat_expertplus_2.zip
+#RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MI_valve_index/MIO_others/MIO05_inspect_easy.zip
+#RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MI_valve_index/MIP_playing/MIPB_beat_saber/MIPB07_beatsaber_fitbeat_expertplus_2.zip
+#RUN unzip MIPB07_beatsaber_fitbeat_expertplus_2.zip
 
 # Samsung Odyssey Plus
-RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MO_odyssey_plus/MOO_others/MOO07_mapping_easy.zip
-RUN unzip MOO07_mapping_easy.zip
+#RUN wget https://huggingface.co/datasets/collabora/monado-slam-datasets/resolve/main/M_monado_datasets/MO_odyssey_plus/MOO_others/MOO07_mapping_easy.zip
+#RUN unzip MOO07_mapping_easy.zip
 
 # Install Basalt
+RUN echo "hihhii"
 RUN git clone --recursive https://github.com/changh95/vslam_lecture.git
 WORKDIR vslam_lecture/basalt_monado
 RUN apt-get install -y sudo

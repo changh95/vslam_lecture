@@ -33,7 +33,7 @@ RUN wget https://github.com/opencv/opencv/archive/refs/tags/4.8.1.zip &&\
     cd opencv-4.8.1 &&\
     mkdir build && cd build &&\
     cmake .. &&\
-    make -j4 &&\
+    make -j &&\
     make install &&\
     cd ../../
 
@@ -43,7 +43,7 @@ RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.3.8/eigen-3.3.8.zip &&\
     cd eigen-3.3.8 &&\
     mkdir build && cd build &&\
     cmake .. &&\
-    make -j4 &&\
+    make -j &&\
     make install &&\
     cd ../../
 
@@ -53,7 +53,7 @@ RUN wget https://github.com/strasdat/Sophus/archive/refs/tags/1.22.10.zip &&\
     cd Sophus-1.22.10 &&\
     mkdir build && cd build &&\
     cmake .. &&\
-    make -j4 &&\
+    make -j &&\
     make install && \
     cd ../../
 
@@ -72,7 +72,7 @@ RUN wget https://github.com/stevenlovegrove/Pangolin/archive/refs/tags/v0.6.zip 
     cd Pangolin-0.6 &&\
     mkdir build && cd build &&\
     cmake .. &&\
-    make -j4 &&\
+    make -j &&\
     make install &&\
     cd ../../
     
