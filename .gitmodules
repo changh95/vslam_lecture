@@ -14,12 +14,12 @@
 [submodule "basalt_monado/thirdparty/Pangolin"]
 	path = basalt_monado/thirdparty/Pangolin
 	url = https://github.com/stevenlovegrove/Pangolin.git
-[submodule "basalt_monado/thirdparty/ros/ros_comm"]
+[submodule "basalt_monado/thirdparty/ros_comm"]
 	path = basalt_monado/thirdparty/ros/ros_comm
 	url = https://github.com/ros/ros_comm.git
-[submodule "basalt_monado/thirdparty/ros/roscpp_core"]
+[submodule "basalt_monado/thirdparty/roscpp_core"]
 	path = basalt_monado/thirdparty/ros/roscpp_core
 	url = https://github.com/NikolausDemmel/roscpp_core.git
-[submodule "basalt_monado/thirdparty/ros/console_bridge"]
+[submodule "basalt_monado/thirdparty/console_bridge"]
 	path = basalt_monado/thirdparty/ros/console_bridge
 	url = https://github.com/ros/console_bridge.git
