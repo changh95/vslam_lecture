@@ -60,13 +60,20 @@ RUN apt-get install -y wget
 #RUN unzip MOO07_mapping_easy.zip
 
 # Install Basalt
-RUN echo "hihhii"
-RUN git clone --recursive https://github.com/changh95/vslam_lecture.git
-WORKDIR vslam_lecture/basalt_monado
+RUN git clone --recursive https://gitlab.freedesktop.org/mateosss/basalt.git
+WORKDIR basalt
 RUN apt-get install -y sudo
 RUN ./scripts/install_deps.sh
 RUN cmake --preset development
 RUN sudo cmake --build build --target install
+
+#RUN git clone --recursive https://github.com/changh95/vslam_lecture.git
+#WORKDIR vslam_lecture/basalt_monado
+#RUN apt-get install -y sudo
+#RUN ./scripts/install_deps.sh
+#RUN apt-get install -y pluginlib-dev libgpgme-dev
+#RUN cmake --preset development
+#RUN sudo cmake --build build --target install
 
 # Build Command:
 # docker build . -t basalt
