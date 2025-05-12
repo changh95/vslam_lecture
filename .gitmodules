@@ -1,25 +1,26 @@
-[submodule "basalt_monado/thirdparty/basalt-headers"]
-	path = basalt_monado/thirdparty/basalt-headers
-#       url = https://gitlab.com/VladyslavUsenko/basalt-headers.git
-	url = https://gitlab.freedesktop.org/mateosss/basalt-headers.git
-[submodule "basalt_monado/thirdparty/magic_enum"]
-	path = basalt_monado/thirdparty/magic_enum
-	url = https://github.com/Neargye/magic_enum.git
 [submodule "basalt_monado/thirdparty/CLI11"]
-	path = basalt_monado/thirdparty/CLI11
-	url = https://github.com/CLIUtils/CLI11.git
+        path = basalt_monado/thirdparty/CLI11
+        url = https://github.com/CLIUtils/CLI11.git
 [submodule "basalt_monado/thirdparty/opengv"]
-	path = basalt_monado/thirdparty/opengv
-	url = https://github.com/laurentkneip/opengv.git
+        path = basalt_monado/thirdparty/opengv
+        url = https://github.com/laurentkneip/opengv.git
 [submodule "basalt_monado/thirdparty/Pangolin"]
-	path = basalt_monado/thirdparty/Pangolin
-	url = https://github.com/stevenlovegrove/Pangolin.git
+        path = basalt_monado/thirdparty/Pangolin
+        url = https://github.com/stevenlovegrove/Pangolin.git
 [submodule "basalt_monado/thirdparty/ros_comm"]
-	path = basalt_monado/thirdparty/ros/ros_comm
-	url = https://github.com/ros/ros_comm.git
+        path = basalt_monado/thirdparty/ros/ros_comm
+        url = https://github.com/ros/ros_comm.git
 [submodule "basalt_monado/thirdparty/roscpp_core"]
-	path = basalt_monado/thirdparty/ros/roscpp_core
-	url = https://github.com/NikolausDemmel/roscpp_core.git
+        path = basalt_monado/thirdparty/ros/roscpp_core
+#       url = https://github.com/ros/roscpp_core.git
+        url = https://github.com/NikolausDemmel/roscpp_core.git
 [submodule "basalt_monado/thirdparty/console_bridge"]
-	path = basalt_monado/thirdparty/ros/console_bridge
-	url = https://github.com/ros/console_bridge.git
+        path = basalt_monado/thirdparty/ros/console_bridge
+        url = https://github.com/ros/console_bridge.git
+[submodule "basalt_monado/thirdparty/basalt-headers"]
+        path = basalt_monado/thirdparty/basalt-headers
+#       url = https://gitlab.com/VladyslavUsenko/basalt-headers.git
+        url = https://gitlab.freedesktop.org/mateosss/basalt-headers.git
+[submodule "basalt_monado/thirdparty/magic_enum"]
+        path = basalt_monado/thirdparty/magic_enum
+        url = https://github.com/Neargye/magic_enum.git
