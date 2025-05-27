@@ -19,7 +19,6 @@ docker run -it \
   --privileged \
   --env="XAUTHORITY=/root/.Xauthority" \
   slam:3_4
-
 ```
 
 ## How to run examples

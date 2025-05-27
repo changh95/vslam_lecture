@@ -7,13 +7,13 @@
 #include <vector>
 
 int main(int argc, char **argv) {
-  if (argc != 5) {
-    std::cerr << "Usage: " << argv[0] << " image1 image2 image3 image4" << std::endl;
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << " image1 image2 image3 query_image" << std::endl;
     return 1;
   }
 
-  std::vector<cv::Mat> images(4);
-  for (int i = 0; i < 4; i++) {
+  std::vector<cv::Mat> images(3);
+  for (int i = 0; i < 3; i++) {
     images[i] = cv::imread(argv[i+1], cv::IMREAD_GRAYSCALE);
     if (images[i].empty()) {
       std::cerr << "Failed to read image: " << argv[i+1] << std::endl;
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
   }
 
   // Query
-  cv::Mat query_img = cv::imread("data/000024.png", cv::IMREAD_GRAYSCALE);
+  cv::Mat query_img = cv::imread(argv[4], cv::IMREAD_GRAYSCALE);
   std::vector<cv::KeyPoint> query_kpts;
   cv::Mat query_desc;
   feature_detector->detectAndCompute(query_img, cv::Mat(), query_kpts,
