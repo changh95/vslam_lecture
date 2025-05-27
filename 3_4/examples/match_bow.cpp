@@ -7,7 +7,7 @@
 #include <vector>
 
 int main(int argc, char **argv) {
-  if (argc != 4) {
+  if (argc != 5) {
     std::cerr << "Usage: " << argv[0] << " image1 image2 image3 query_image" << std::endl;
     return 1;
   }
