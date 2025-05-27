@@ -222,6 +222,11 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(int64_t t_ns, const Sophus::S
 
 template <class Scalar_>
 void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, const Eigen::Vector3d& ba_) {
+  /*
+   * [VIO 초기화 함수]
+   * - 자이로스코프 바이어스(bg)와 가속도계 바이어스(ba)를 초기화하는 함수
+   * - 실제 VIO 처리를 담당하는 processing_thread를 생성하고 시작
+   */
   Vec3 bg_init = bg_.cast<Scalar>();
   Vec3 ba_init = ba_.cast<Scalar>();
 
@@ -229,6 +234,11 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
     OpticalFlowResult::Ptr prev_frame, curr_frame;
     typename IntegratedImuMeasurement<Scalar>::Ptr meas;
 
+    /*
+     * [IMU 노이즈 모델 설정]
+     * - 가속도계와 자이로스코프의 이산시간 노이즈 표준편차를 제곱하여 공분산 행렬 생성
+     * - 실제 IMU 적분에 사용됨
+     */
     const Vec3 accel_cov = calib.dicrete_time_accel_noise_std().array().square();
     const Vec3 gyro_cov = calib.dicrete_time_gyro_noise_std().array().square();
 
@@ -236,6 +246,11 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
 
     bool run = data != nullptr;  // End VIO otherwise
     if (run) {
+      /*
+       * [IMU 데이터 보정]
+       * - 원본 IMU 데이터에 캘리브레이션 적용
+       * - calib_accel_bias, calib_gyro_bias는 basalt/calibration/ 디렉토리에 구현
+       */
       data->accel = calib.calib_accel_bias.getCalibrated(data->accel);
       data->gyro = calib.calib_gyro_bias.getCalibrated(data->gyro);
     }
@@ -249,6 +264,11 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
 
       vision_data_queue.pop(curr_frame);
 
+      /*
+       * [실시간 처리를 위한 프레임 드롭]
+       * - 실시간성이 중요한 경우 큐에 있는 오래된 프레임을 건너뜀
+       * - 최신 프레임만 처리하여 지연을 방지
+       */
       if (config.vio_enforce_realtime) {
         // drop current frame if another frame is already in the queue.
         while (!vision_data_queue.empty()) vision_data_queue.pop(curr_frame);
@@ -268,6 +288,12 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
         visual_data->t_ns = curr_frame->t_ns;
       }
 
+      /*
+       * [VIO 시스템 초기화]
+       * - 첫 프레임에서 초기 자세 추정
+       * - 중력 방향을 기준으로 초기 회전 설정
+       * - 상태 변수(pose, velocity, bias) 초기화
+       */
       if (!initialized) {
         while (data->t_ns < curr_frame->t_ns) {
           data = popFromImuDataQueue();
@@ -304,6 +330,12 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
         initialized = true;
       }
 
+      /*
+       * [IMU 사전적분]
+       * - 이전 프레임과 현재 프레임 사이의 IMU 측정치 적분
+       * - 적분된 측정치는 상태 예측과 최적화에 사용
+       * - 실제 구현은 basalt/imu/ 디렉토리의 preintegration.h 참고
+       */
       if (prev_frame) {
         // preintegrate measurements
 
@@ -345,6 +377,11 @@ void SqrtKeypointVioEstimator<Scalar_>::initialize(const Eigen::Vector3d& bg_, c
       }
       curr_frame->input_images->addTime("imu_preintegrated");
 
+      /*
+       * [VIO 측정 업데이트]
+       * - 비주얼 트래킹과 IMU 적분 결과를 결합하여 상태 추정
+       * - measure() 함수는 basalt/vi_estimator/sqrt_keypoint_vio.cpp에 구현
+       */
       bool success = measure(curr_frame, meas);
       if (!success) {
         schedule_reset = true;
@@ -400,12 +437,27 @@ typename ImuData<Scalar_>::Ptr SqrtKeypointVioEstimator<Scalar_>::popFromImuData
   }
 }
 
+/*
+ * [VIO 측정 업데이트 함수]
+ * - 비주얼 프론트엔드(optical flow)와 IMU 측정치를 결합하여 상태를 업데이트
+ * - 주요 구현 내용:
+ *   1. IMU 적분을 통한 상태 예측 (basalt/vi_estimator/imu_integrator.h)
+ *   2. 새로운 키프레임 생성 및 랜드마크 관리
+ *   3. 번들 조정 최적화 (optimize_and_marg() 함수에서 수행)
+ *   4. 상태 및 랜드마크 마진화
+ */
 template <class Scalar_>
 bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& opt_flow_meas,
                                                 const typename IntegratedImuMeasurement<Scalar>::Ptr& meas) {
   stats_sums_.add("frame_id", opt_flow_meas->t_ns).format("none");
   Timer t_total;
 
+  /*
+   * [IMU 예측 단계]
+   * - IMU 측정치가 있는 경우 상태를 예측
+   * - 이전 상태에서 IMU 적분을 통해 현재 상태 예측
+   * - 실제 IMU 적분은 basalt/vi_estimator/imu_integrator.h에 구현
+   */
   if (meas.get()) {
     BASALT_ASSERT(frame_states[last_state_t_ns].getState().t_ns == meas->get_start_t_ns());
     BASALT_ASSERT(opt_flow_meas->t_ns == meas->get_dt_ns() + meas->get_start_t_ns());
@@ -427,7 +479,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& op
   // save results
   prev_opt_flow_res[opt_flow_meas->t_ns] = opt_flow_meas;
 
-  // Make new residual for existing keypoints
+  /*
+   * [랜드마크 관리 및 데이터 연관]
+   * - 기존 랜드마크와 새로운 관측치 매칭
+   * - 랜드마크 데이터베이스는 basalt/vi_estimator/landmark_database.h에 구현
+   */
   int NUM_CAMS = opt_flow_meas->keypoints.size();
   std::vector<int> connected(NUM_CAMS, 0);
   std::map<int64_t, int> num_points_connected;
@@ -460,6 +516,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& op
     }
   }
 
+  /*
+   * [키프레임 결정]
+   * - 트래킹된 특징점 비율이 임계값보다 낮으면 새로운 키프레임 생성
+   * - 키프레임 관리는 basalt/vi_estimator/keyframe_database.h에서 구현
+   */
   if (Scalar(connected[0]) / (connected[0] + unconnected_obs[0].size()) < Scalar(config.vio_new_kf_keypoints_thresh) &&
       frames_after_kf > config.vio_min_frames_after_kf)
     take_kf = true;
@@ -480,6 +541,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& op
     take_ltkf = false;
   }
 
+  /*
+   * [새로운 랜드마크 생성]
+   * - 키프레임에서 새로운 랜드마크 삼각측량
+   * - 삼각측량은 basalt/utils/triangulation.h에 구현
+   */
   if (take_kf) {
     // Triangulate new points from one of the observations (with sufficient
     // baseline) and make keyframe
@@ -566,6 +632,12 @@ bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& op
     frames_after_kf++;
   }
 
+  /*
+   * [최적화 및 마진화]
+   * - 번들 조정을 통한 상태 최적화
+   * - 오래된 프레임과 랜드마크 마진화
+   * - 최적화는 basalt/optimization/bundle_adjustment.h에 구현
+   */
   std::unordered_set<KeypointId> lost_landmaks;
   if (config.vio_marg_lost_landmarks) {
     for (const auto& kv : lmdb.getLandmarks()) {
@@ -583,6 +655,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::measure(const OpticalFlowResult::Ptr& op
   bool success = optimize_and_marg(opt_flow_meas->input_images, num_points_connected, lost_landmaks);
   if (!success) return false;
 
+  /*
+   * [시각화 및 결과 출력]
+   * - 특징점 투영 및 시각화 데이터 생성
+   * - 시각화는 basalt/utils/vis_utils.h에 구현
+   */
   size_t num_cams = opt_flow_meas->keypoints.size();
   bool features_ext = opt_flow_meas->input_images->stats.enabled_exts.has_pose_features;
   bool avg_depth_needed =
@@ -718,6 +795,10 @@ bool SqrtKeypointVioEstimator<Scalar>::show_uimat(UIMAT m) const {
   return res;
 }
 
+// 이 함수는 VIO 시스템의 marginalization을 수행하는 핵심 함수입니다.
+// 주요 기능:
+// 1. 오래된 keyframe과 state를 제거하여 시스템 크기를 일정하게 유지
+// 2. marginalization prior 생성하여 제거된 정보를 보존
 template <class Scalar_>
 bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>& num_points_connected,
                                                     const std::unordered_set<KeypointId>& lost_landmaks) {
@@ -725,6 +806,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
 
   Timer t_total;
 
+  // 시스템 크기가 max_kfs나 max_states를 초과하면 marginalization 수행
   if (frame_poses.size() > ltkfs.size() + max_kfs || frame_states.size() >= max_states) {
     // Marginalize
 
@@ -734,9 +816,10 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
     for (int i = 0; i < states_to_remove; i++) it++;
     int64_t last_state_to_marg = it->first;
 
+    // 상태 변수들의 순서를 관리하는 AbsOrderMap 생성
     AbsOrderMap aom;
 
-    // remove all frame_poses that are not kfs
+    // keyframe이 아닌 모든 frame_poses를 제거 대상으로 표시
     std::set<int64_t> poses_to_marg;
     for (const auto& kv : frame_poses) {
       aom.abs_order_map[kv.first] = std::make_pair(aom.total_size, POSE_SIZE);
@@ -750,6 +833,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
       aom.items++;
     }
 
+    // 제거할 state들을 velocity/bias만 제거할 것과 전체를 제거할 것으로 분류
     std::set<int64_t> states_to_marg_vel_bias;
     std::set<int64_t> states_to_marg_all;
     for (const auto& kv : frame_states) {
@@ -775,17 +859,16 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
 
     auto kf_ids_all = kf_ids;
     std::set<int64_t> kfs_to_marg;
+    
+    // 제거할 keyframe 선택 로직
+    // config.vio_kf_marg_criteria에 따라 두 가지 방식 중 하나 사용:
+    // 1. KF_MARG_FORWARD_VECTOR: forward vector 방향이 잘 분포되도록 선택
+    // 2. KF_MARG_DEFAULT: feature tracking 상태와 keyframe 간 거리 기반으로 선택
     while (kf_ids.size() > max_kfs && !states_to_marg_vel_bias.empty()) {
       int64_t id_to_marg = -1;
 
       if (config.vio_kf_marg_criteria == KeyframeMargCriteria::KF_MARG_FORWARD_VECTOR) {
-        // TODO: With feature recall enabled, we needed a better marginalization
-        // criteria since "unconnected observations" is now not always something
-        // bad because they can be reconnected. The KF_MARG_FORWARD_VECTOR
-        // criteria tries to keep keyframes with forward vectors as spread as
-        // possible but it is just a basic approach. A more complete approach
-        // should also prioritize keyframes that: are older, have more features,
-        // have better quality features.
+        // forward vector 기반 keyframe 선택 로직 구현부
         if (kf_ids.size() > 2 && id_to_marg < 0) {
           std::set<int64_t> all_kfs = ltkfs;
           all_kfs.insert(kf_ids.begin(), kf_ids.end());
@@ -823,9 +906,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
           id_to_marg = min_score_id;
         }
       } else if (config.vio_kf_marg_criteria == KeyframeMargCriteria::KF_MARG_DEFAULT) {
-        // starting from the oldest kf (and skipping the newest 2 kfs), try to
-        // find a kf that has less than a small percentage of it's landmarks
-        // tracked by the current frame
+        // feature tracking 상태와 거리 기반 keyframe 선택 로직 구현부
         if (kf_ids.size() > 2) {
           // Note: size > 2 check is to ensure prev(kf_ids.end(), 2) is valid
           auto end_minus_2 = std::prev(kf_ids.end(), 2);
@@ -840,11 +921,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
           }
         }
 
-        // Note: This score function is taken from DSO, but it seems to mostly
-        // marginalize the oldest keyframe. This may be due to the fact that
-        // we don't have as long-lived landmarks, which may change if we ever
-        // implement "rediscovering" of lost feature tracks by projecting
-        // untracked landmarks into the localized frame.
+        // DSO에서 가져온 score 함수 - 주로 가장 오래된 keyframe을 제거
         if (kf_ids.size() > 2 && id_to_marg < 0) {
           // Note: size > 2 check is to ensure prev(kf_ids.end(), 2) is valid
           auto end_minus_2 = std::prev(kf_ids.end(), 2);
@@ -910,17 +987,20 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
 
     bool is_lin_sqrt = isLinearizationSqrt(config.vio_linearization_type);
 
+    // 선형화된 시스템의 Jacobian과 residual을 저장할 행렬/벡터
     MatX Q2Jp_or_H;
     VecX Q2r_or_b;
 
     {
       Timer t_linearize;
 
+      // 선형화 옵션 설정
       typename LinearizationBase<Scalar, POSE_SIZE>::Options lqr_options;
       lqr_options.lb_options.huber_parameter = huber_thresh;
       lqr_options.lb_options.obs_std_dev = obs_std_dev;
       lqr_options.linearization_type = config.vio_linearization_type;
 
+      // IMU 데이터 준비
       ImuLinData<Scalar> ild = {g, gyro_bias_sqrt_weight, accel_bias_sqrt_weight, {}};
 
       for (const auto& kv : imu_meas) {
@@ -932,6 +1012,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
         ild.imu_meas[kv.first] = &kv.second;
       }
 
+      // 시스템 선형화 및 QR 분해 수행
       std::set<FrameId> fixed_kfs = config.vio_fix_long_term_keyframes ? ltkfs : std::set<FrameId>{};
       auto lqr = LinearizationBase<Scalar, POSE_SIZE>::create(this, aom, lqr_options, &marg_data, &ild, &kfs_to_marg,
                                                               &lost_landmaks, last_state_to_marg, &fixed_kfs);
@@ -959,7 +1040,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
     //    accum.getH(),
     //                       accum.getB(), marg_prior_error);
 
-    // Save marginalization prior
+    // marginalization prior 저장 - 다른 모듈에서 사용할 수 있도록
     if (out_marg_queue && !kfs_to_marg.empty()) {
       // int64_t kf_id = *kfs_to_marg.begin();
 
@@ -990,6 +1071,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
       }
     }
 
+    // 유지할 변수와 제거할 변수의 인덱스 구분
     std::set<int> idx_to_keep, idx_to_marg;
     for (const auto& kv : aom.abs_order_map) {
       if (kv.second.second == POSE_SIZE) {
@@ -1022,6 +1104,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
                 << " frame_states " << frame_states.size() << std::endl;
     }
 
+    // nullspace 체크를 위한 추가 계산 (디버깅용)
     if (config.vio_debug || config.vio_extended_logging) {
       MatX Q2Jp_or_H_nullspace;
       VecX Q2r_or_b_nullspace;
@@ -1076,6 +1159,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
       nullspace_marg_data.b = nullspace_sqrt_b_new;
     }
 
+    // 실제 marginalization 수행
     MatX marg_H_new;
     VecX marg_b_new;
 
@@ -1100,6 +1184,7 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
       frame_states.at(last_state_to_marg).setLinTrue();
     }
 
+    // 제거된 state들 정리
     for (const int64_t id : states_to_marg_all) {
       if (visual_data) visual_data->marginalized_idx[id] = frame_idx.at(id);
       frame_states.erase(id);
@@ -1124,12 +1209,14 @@ bool SqrtKeypointVioEstimator<Scalar_>::marginalize(const std::map<int64_t, int>
       prev_opt_flow_res.erase(id);
     }
 
+    // landmark database 업데이트
     lmdb.removeKeyframes(kfs_to_marg, poses_to_marg, states_to_marg_all);
 
     if (config.vio_marg_lost_landmarks) {
       for (const auto& lm_id : lost_landmaks) lmdb.removeLandmark(lm_id);
     }
 
+    // 새로운 marginalization prior 생성
     AbsOrderMap marg_order_new;
 
     for (const auto& kv : frame_poses) {
@@ -1217,6 +1304,17 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
     std::cout << "=================================" << std::endl;
   }
 
+  /*
+   * [VIO 최적화 함수]
+   * - 비주얼-관성 최적화를 수행하는 핵심 함수
+   * - Levenberg-Marquardt 알고리즘을 사용한 비선형 최적화 구현
+   * - 주요 구성:
+   *   1. 상태 변수 순서 결정 (AbsOrderMap)
+   *   2. 잔차 선형화 (LinearizationBase)
+   *   3. QR 분해를 통한 랜드마크 marginalization
+   *   4. Schur complement를 이용한 카메라 포즈 최적화
+   */
+
   if (opt_started || frame_states.size() > 4) {
     opt_started = true;
 
@@ -1229,8 +1327,12 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
     Timer timer_total;
     Timer timer_iteration;
 
-    // construct order of states in linear system --> sort by ascending
-    // timestamp
+    /*
+     * [상태 변수 순서 결정]
+     * - 타임스탬프 기준 오름차순으로 정렬
+     * - frame_poses: 카메라 포즈만 있는 프레임 (POSE_SIZE = 6)
+     * - frame_states: 포즈, 속도, 바이어스가 있는 프레임 (POSE_VEL_BIAS_SIZE = 15)
+     */
     AbsOrderMap aom;
 
     for (const auto& kv : frame_poses) {
@@ -1266,7 +1368,12 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
     stats.add("num_lms", this->lmdb.numLandmarks()).format("count");
     stats.add("num_obs", this->lmdb.numObservations()).format("count");
 
-    // setup landmark blocks
+    /*
+     * [랜드마크 블록 설정]
+     * - 랜드마크 관련 잔차 선형화를 위한 설정
+     * - Huber robust cost function 파라미터 설정
+     * - 관측 표준편차 설정
+     */
     typename LinearizationBase<Scalar, POSE_SIZE>::Options lqr_options;
     lqr_options.lb_options.huber_parameter = huber_thresh;
     lqr_options.lb_options.obs_std_dev = obs_std_dev;
@@ -1274,6 +1381,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
 
     std::unique_ptr<LinearizationBase<Scalar, POSE_SIZE>> lqr;
 
+    /*
+     * [IMU 데이터 설정]
+     * - 중력, 자이로/가속도계 바이어스 가중치 설정
+     * - IMU 측정치 저장
+     */
     ImuLinData<Scalar> ild = {g, gyro_bias_sqrt_weight, accel_bias_sqrt_weight, {}};
     for (const auto& kv : imu_meas) {
       ild.imu_meas[kv.first] = &kv.second;
@@ -1293,6 +1405,15 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
     bool converged = false;
     std::string message;
 
+    /*
+     * [Levenberg-Marquardt 최적화 반복]
+     * - 최대 반복 횟수까지 최적화 수행
+     * - 각 반복에서:
+     *   1. 잔차 선형화
+     *   2. QR 분해로 랜드마크 marginalization
+     *   3. Schur complement로 카메라 포즈 업데이트
+     *   4. 댐핑 파라미터(lambda) 조정
+     */
     int it = 0;
     int it_rejected = 0;
     for (; it <= config.vio_max_iterations && !terminated;) {
@@ -1360,8 +1481,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
       //   std::cout << "\t[INFO] Stage 1" << std::endl;
       //}
 
-      // inner loop for backtracking in LM (still count as main iteration
-      // though)
+      /*
+       * [Levenberg-Marquardt 내부 반복]
+       * - 댐핑 파라미터(lambda) 조정을 위한 backtracking
+       * - 비용 함수 감소 여부에 따라 스텝 수용/거부 결정
+       */
       for (int j = 0; it <= config.vio_max_iterations && !terminated; j++) {
         if (j > 0) {
           timer_iteration.reset();
@@ -1398,6 +1522,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
         //   std::cout << "\t[INFO] Stage 2 " << std::endl;
         // }
 
+        /*
+         * [선형 시스템 풀이]
+         * - Schur complement로 얻은 카메라 포즈에 대한 선형 시스템
+         * - LDLT 분해로 증분 계산
+         */
         VecX inc;
         {
           Timer t;
@@ -1475,7 +1604,10 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
         //          inc.array() *= jacobian_scaling.array();
         //        }
 
-        // apply increment to poses
+        /*
+         * [상태 변수 업데이트]
+         * - 계산된 증분으로 카메라 포즈와 IMU 상태 업데이트
+         */
         for (auto& [frame_id, state] : frame_poses) {
           int idx = aom.abs_order_map.at(frame_id).first;
           state.applyInc(inc.template segment<POSE_SIZE>(idx));
@@ -1489,7 +1621,11 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
         // compute stepsize
         Scalar step_norminf = inc.array().abs().maxCoeff();
 
-        // compute error update applying increment
+        /*
+         * [Cost function 평가]
+         * - 업데이트 후 Cost function계산
+         * - vision, IMU, marginalization prior 항 포함
+         */
         Scalar after_update_marg_prior_error = 0;
         Scalar after_update_vision_and_inertial_error = 0;
 
@@ -1510,7 +1646,12 @@ bool SqrtKeypointVioEstimator<Scalar_>::optimize() {
 
         Scalar after_error_total = after_update_vision_and_inertial_error + after_update_marg_prior_error;
 
-        // check cost decrease compared to quadratic model cost
+        /*
+         * [스텝 평가]
+         * - 비용 감소량과 예측된 감소량 비교
+         * - 스텝 수용 여부 결정
+         * - 댐핑 파라미터 조정
+         */
         Scalar f_diff;
         bool step_is_valid = false;
         bool step_is_successful = false;

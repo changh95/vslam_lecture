@@ -92,6 +92,14 @@ using std::thread;
 using vis::Button;
 using UIMAT = vis::UIMAT;
 
+/*
+ * basalt_vio_ui 클래스는 VIO 시스템의 UI와 실행 로직을 담당합니다.
+ * 이 클래스는 다음 주요 기능을 포함합니다:
+ * 1. 이미지와 IMU 데이터 로드 및 처리
+ * 2. VIO 알고리즘 실행
+ * 3. 결과 시각화 및 분석
+ * 4. 다양한 형식으로 궤적 저장
+ */
 struct basalt_vio_ui : vis::VIOUIBase {
   VioDatasetPtr vio_dataset;
   int64_t start_t_ns = -1;
@@ -248,6 +256,14 @@ struct basalt_vio_ui : vis::VIOUIBase {
       show_frame.Meta().range[1] = vio_dataset->get_image_timestamps().size() - 1;
       show_frame.Meta().gui_changed = true;
 
+      /*
+       * [특징점 추적 및 옵티컬 플로우 부분]
+       * Basalt 시스템은 direct method를 사용하여 특징점을 추적합니다.
+       * 옵티컬 플로우는 특징점 추출과 추적을 담당합니다.
+       * 실제 구현은 basalt/optical_flow/ 디렉토리에 있습니다.
+       * - PatchOpticalFlow: 패치 기반 추적 (basalt/optical_flow/patch_optical_flow.h)
+       * - 특징점 선택, 추적, 스케일 공간 피라미드 등의 기능 포함
+       */
       opt_flow = basalt::OpticalFlowFactory::getOpticalFlow(config, calib);
       opt_flow->start();
 
@@ -258,6 +274,14 @@ struct basalt_vio_ui : vis::VIOUIBase {
     }
 
     {
+      /*
+       * [VIO 알고리즘 초기화 부분]
+       * 여기서 VIO 알고리즘의 실제 인스턴스가 생성됩니다.
+       * VioEstimatorFactory를 통해 설정에 따라 적절한 VIO 알고리즘 인스턴스를 생성합니다.
+       * 실제 알고리즘 구현은 basalt/vi_estimator/ 디렉토리에 있습니다.
+       * - KeypointVioEstimator: 키포인트 기반 VIO (basalt/vi_estimator/keypoint_vio.h)
+       * - stereo-VIO, mono-VIO 등 다양한 구현체가 있습니다.
+       */
       vio = basalt::VioEstimatorFactory::getVioEstimator(config, calib, basalt::constants::g, use_imu, use_double);
       vio->initialize(Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
@@ -338,6 +362,14 @@ struct basalt_vio_ui : vis::VIOUIBase {
   }
 
   bool pop_state() {
+    /*
+     * [VIO 상태 처리 함수]
+     * 이 함수는 VIO 알고리즘에서 계산된 상태(pose, velocity, bias 등)를 처리합니다.
+     * VIO 알고리즘은 최적화 후 새로운 상태를 out_state_queue에 넣고,
+     * 이 함수는 그 결과를 가져와 궤적과 그래프 데이터를 업데이트합니다.
+     * 시각화 및 결과 저장에 사용되는 vio_t_ns, vio_t_w_i, vio_T_w_i 배열이 여기서 업데이트됩니다.
+     * 최종 ATE(Absolute Trajectory Error) 계산에도 이 데이터가 사용됩니다.
+     */
     basalt::PoseVelBiasState<double>::Ptr data;
     out_state_queue.pop(data);
 
@@ -693,6 +725,13 @@ struct basalt_vio_ui : vis::VIOUIBase {
 
   // Feed functions
   void feed_images() {
+    /*
+     * [이미지 피딩 쓰레드]
+     * 이 함수는 독립된 쓰레드에서 실행되며 이미지 데이터를 VIO 시스템에 공급합니다.
+     * 데이터셋에서 이미지를 로드하여 OpticalFlow 모듈의 input_img_queue에 넣습니다.
+     * OpticalFlow 모듈은 특징점 추출 및 추적 작업을 수행한 후 결과를 VIO 알고리즘에 전달합니다.
+     * 이 데이터 흐름이 Basalt의 프론트엔드-백엔드 구조의 핵심입니다.
+     */
     std::cout << "Started input_data thread " << std::endl;
 
     int NUM_CAMS = calib.intrinsics.size();
@@ -726,6 +765,13 @@ struct basalt_vio_ui : vis::VIOUIBase {
   }
 
   void feed_imu() {
+    /*
+     * [IMU 데이터 피딩 쓰레드]
+     * 이 함수는 독립된 쓰레드에서 실행되며 IMU 데이터를 VIO 시스템에 공급합니다.
+     * 자이로스코프(각속도)와 가속도계 데이터를 패키징하여 VIO 알고리즘에 전달합니다.
+     * Basalt는 IMU 예적분(preintegration)을 사용하여 이미지 프레임 사이의 IMU 측정값을 결합합니다.
+     * 이 과정은 basalt/vi_estimator/ 디렉토리의 imu_integrator.h에 구현되어 있습니다.
+     */
     for (size_t i = 0; i < vio_dataset->get_gyro_data().size(); i++) {
       if (vio->finished || terminate) {
         break;
@@ -916,6 +962,17 @@ struct basalt_vio_ui : vis::VIOUIBase {
   void alignButton() { basalt::alignSVD(vio_t_ns, vio_t_w_i, gt_t_ns, gt_t_w_i); }
 
   void compute_frames_ate() {
+    /*
+     * [ATE(Absolute Trajectory Error) 계산 함수]
+     * 이 함수는 VIO로 추정한 궤적과 그라운드 트루스 사이의 오차를 계산합니다.
+     * 주요 단계:
+     * 1. 추정 궤적과 그라운드 트루스 타임스탬프 연관 찾기(associate)
+     * 2. 두 궤적 사이의 최적 변환 행렬 계산(get_alignment)
+     * 3. 정렬된 궤적 사이의 오차 계산(compute_ate)
+     * 4. 결과 로깅 및 시각화
+     * 
+     * RMSE ATE는 VSLAM/VIO 시스템 평가의 표준 지표 중 하나입니다.
+     */
     Eigen::Matrix<int64_t, Eigen::Dynamic, 1> ts{};
     Eigen::Matrix<float, 3, Eigen::Dynamic> est_xyz{};
     Eigen::Matrix<float, 3, Eigen::Dynamic> ref_xyz{};
@@ -951,6 +1008,17 @@ struct basalt_vio_ui : vis::VIOUIBase {
   }
 
   void saveTrajectoryButton() {
+    /*
+     * [궤적 저장 함수]
+     * 이 함수는 VIO로 추정한 카메라 궤적을 파일로 저장합니다.
+     * 지원하는 형식:
+     * 1. TUM RGB-D: timestamp tx ty tz qx qy qz qw 형식(초 단위 타임스탬프)
+     * 2. EuRoC: timestamp, tx, ty, tz, qw, qx, qy, qz 형식(나노초 단위 타임스탬프)
+     * 3. KITTI: 3x4 변환 행렬 형식
+     * 
+     * 이 궤적 파일은 evo 등의 평가 도구로 분석할 수 있습니다.
+     * 그라운드 트루스 궤적도 같은 형식으로 저장 가능합니다(save_groundtruth 옵션).
+     */
     if (tum_rgbd_fmt) {
       {
         std::ofstream os("trajectory.txt");
