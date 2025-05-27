@@ -6,13 +6,20 @@
 #include <iostream>
 #include <vector>
 
-int main() {
-  std::vector<cv::Mat> images(4);
+int main(int argc, char **argv) {
+  if (argc != 5) {
+    std::cerr << "Usage: " << argv[0] << " image1 image2 image3 image4" << std::endl;
+    return 1;
+  }
 
-  images[0] = cv::imread("data/000025.png", cv::IMREAD_GRAYSCALE);
-  images[1] = cv::imread("data/001382.png", cv::IMREAD_GRAYSCALE);
-  images[2] = cv::imread("data/002105.png", cv::IMREAD_GRAYSCALE);
-  images[3] = cv::imread("data/003295.png", cv::IMREAD_GRAYSCALE);
+  std::vector<cv::Mat> images(4);
+  for (int i = 0; i < 4; i++) {
+    images[i] = cv::imread(argv[i+1], cv::IMREAD_GRAYSCALE);
+    if (images[i].empty()) {
+      std::cerr << "Failed to read image: " << argv[i+1] << std::endl;
+      return 1;
+    }
+  }
 
   const auto feature_detector = cv::ORB::create();
   std::vector<std::vector<cv::Mat>> v_descriptors;
